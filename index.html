@@ -89,11 +89,24 @@ canvas{max-width:100%;height:auto;display:block;box-shadow:0 1px 8px rgba(0,0,0,
       <label for="preset">输出尺寸</label>
       <select id="preset">
         <option value="auto">宽度固定，高度自动</option>
-        <option value="1080x1080">1:1 · 1080×1080</option>
-        <option value="1080x1440">3:4 · 1080×1440</option>
-        <option value="1080x1350">4:5 · 1080×1350</option>
-        <option value="1080x1920">9:16 · 1080×1920</option>
-        <option value="1920x1080">16:9 · 1920×1080</option>
+        <optgroup label="打印纸张（300 dpi）">
+          <option value="2480x3508">A4 竖版 · 2480×3508</option>
+          <option value="3508x2480">A4 横版 · 3508×2480</option>
+          <option value="1748x2480">A5 竖版 · 1748×2480</option>
+          <option value="1240x1748">A6 竖版 · 1240×1748</option>
+          <option value="1200x1800">4×6 英寸照片 · 1200×1800</option>
+          <option value="1500x2100">5×7 英寸照片 · 1500×2100</option>
+        </optgroup>
+        <optgroup label="社交媒体 / 屏幕">
+          <option value="1080x1080">1:1 · 1080×1080</option>
+          <option value="2048x2048">1:1 高清 · 2048×2048</option>
+          <option value="1080x1440">3:4 · 1080×1440</option>
+          <option value="1080x1350">4:5 · 1080×1350</option>
+          <option value="1080x1920">9:16 · 1080×1920</option>
+          <option value="1170x2532">手机壁纸 · 1170×2532</option>
+          <option value="1920x1080">16:9 · 1920×1080</option>
+          <option value="3840x2160">4K · 3840×2160</option>
+        </optgroup>
         <option value="custom">自定义</option>
       </select>
       <div class="two">
