@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>图片自动排版</title>
+<style>
+:root{--bg:#eef1f4;--panel:#fff;--ink:#1c2430;--mute:#66707d;--line:#d5dbe2;--accent:#1f5fd6;--accent-ink:#fff;--stage:#dfe4ea;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12161c;--panel:#1b212a;--ink:#e6eaf0;--mute:#8f99a6;--line:#2c3541;--accent:#6b9cff;--accent-ink:#0d1422;--stage:#0d1015}}
+:root[data-theme="dark"]{--bg:#12161c;--panel:#1b212a;--ink:#e6eaf0;--mute:#8f99a6;--line:#2c3541;--accent:#6b9cff;--accent-ink:#0d1422;--stage:#0d1015}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,"PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:22px;margin:0 0 4px;letter-spacing:.02em}
+.sub{color:var(--mute);margin:0 0 18px}
+.grid{display:grid;grid-template-columns:300px 1fr;gap:16px;align-items:start}
+@media(max-width:820px){.grid{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+.drop{border:2px dashed var(--line);border-radius:8px;padding:22px 12px;text-align:center;color:var(--mute);cursor:pointer}
+.drop.over{border-color:var(--accent);color:var(--accent)}
+.drop b{color:var(--ink);display:block;margin-bottom:2px}
+.thumbs{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.thumb{position:relative;width:52px;height:52px;border-radius:6px;overflow:hidden;background:var(--stage)}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb button{position:absolute;top:0;right:0;width:20px;height:20px;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:13px;line-height:1;cursor:pointer;border-radius:0 0 0 6px;padding:0}
+label{display:block;margin-top:14px;font-weight:600;font-size:13px}
+.row{display:flex;align-items:center;gap:10px;margin-top:6px}
+.row output{min-width:34px;text-align:right;color:var(--mute);font-variant-numeric:tabular-nums}
+select,input[type=range],input[type=color]{width:100%}
+select{padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font:inherit;margin-top:6px}
+input[type=color]{height:36px;padding:2px;border:1px solid var(--line);border-radius:6px;background:var(--panel);margin-top:6px}
+.btns{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap}
+button.b{flex:1;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:inherit;cursor:pointer}
+button.b.main{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+button:focus-visible,select:focus-visible,input:focus-visible,.drop:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.stage{background:var(--stage);border-radius:8px;padding:12px;min-height:240px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+canvas{max-width:100%;height:auto;display:block;box-shadow:0 1px 8px rgba(0,0,0,.18)}
+.empty{color:var(--mute);text-align:center}
+.result{margin-top:14px;display:none}
+.result img{max-width:100%;display:block;border-radius:6px;margin-top:8px}
+.hint{color:var(--mute);font-size:13px}
+
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
+.two input[type=number]{width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font:inherit}
+.two input:disabled{opacity:.55}
+.two span{display:block;font-size:12px;color:var(--mute);font-weight:400}
+.modal{position:fixed;inset:0;background:rgba(8,10,14,.72);display:none;align-items:center;justify-content:center;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px));z-index:10}
+.modal.on{display:flex}
+.sheet{background:var(--panel);border:1px solid var(--line);border-radius:12px;max-width:760px;width:100%;max-height:100%;display:flex;flex-direction:column;overflow:hidden}
+.sheet .pv{flex:1;min-height:0;overflow:auto;background:var(--stage);padding:12px;display:flex;justify-content:center}
+.sheet .pv img{max-width:100%;max-height:60vh;object-fit:contain;display:block;height:auto;align-self:flex-start}
+.sheet .bar{padding:12px 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--line)}
+.sheet .info{flex:1 1 100%;color:var(--mute);font-size:13px}
+.sheet select{width:auto;margin:0}
+.sheet .b{flex:1 1 auto}
+.msg{color:var(--mute);font-size:13px;flex:1 1 100%}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>图片自动排版</h1>
+  <p class="sub">上传多张图片，自动拼成一张整齐的长图或拼图。图片只在你的浏览器里处理，不会上传。</p>
+  <div class="grid">
+    <div class="card">
+      <div class="drop" id="drop" tabindex="0" role="button" aria-label="选择图片">
+        <b>点击选择，或把图片拖到这里</b>支持多选 JPG / PNG / WebP
+      </div>
+      <input type="file" id="file" accept="image/*" multiple hidden>
+      <div class="thumbs" id="thumbs"></div>
+
+      <label for="mode">排版方式</label>
+      <select id="mode">
+        <option value="rows">自动行排（等行高，不裁剪）</option>
+        <option value="masonry">瀑布流（不裁剪）</option>
+        <option value="grid">方格（居中裁剪）</option>
+      </select>
+
+      <label for="size" id="sizeLabel">目标行高</label>
+      <div class="row"><input type="range" id="size" min="120" max="600" value="300"><output id="sizeOut"></output></div>
+
+      <label for="gap">间距</label>
+      <div class="row"><input type="range" id="gap" min="0" max="200" value="12"><output id="gapOut"></output></div>
+
+      <label for="radius">圆角</label>
+      <div class="row"><input type="range" id="radius" min="0" max="60" value="8"><output id="radiusOut"></output></div>
+
+      <label for="preset">输出尺寸</label>
+      <select id="preset">
+        <option value="auto">宽度固定，高度自动</option>
+        <option value="1080x1080">1:1 · 1080×1080</option>
+        <option value="1080x1440">3:4 · 1080×1440</option>
+        <option value="1080x1350">4:5 · 1080×1350</option>
+        <option value="1080x1920">9:16 · 1080×1920</option>
+        <option value="1920x1080">16:9 · 1920×1080</option>
+        <option value="custom">自定义</option>
+      </select>
+      <div class="two">
+        <div><span>宽 (px)</span><input type="number" id="wIn" min="100" max="8000" value="1600"></div>
+        <div><span>高 (px)</span><input type="number" id="hIn" min="100" max="8000" value="1600"></div>
+      </div>
+
+      <label for="bg">背景色</label>
+      <input type="color" id="bg" value="#ffffff">
+
+      <div class="btns">
+        <button class="b" id="shuffle">打乱顺序</button>
+        <button class="b main" id="make">预览并保存</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="stage" id="stage"><div class="empty">先添加几张图片，排版会显示在这里</div></div>
+        <div class="hint" id="dimInfo" style="margin-top:8px"></div>
+      </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-label="预览">
+  <div class="sheet">
+    <div class="pv"><img id="pvImg" alt="排版预览"></div>
+    <div class="bar">
+      <div class="info" id="pvInfo"></div>
+      <select id="fmt" aria-label="保存格式"><option value="png">PNG</option><option value="jpg">JPG</option></select>
+      <button class="b" id="back">返回修改</button>
+      <button class="b main" id="save">保存图片</button>
+      <div class="msg" id="msg"></div>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  var items=[], $=function(id){return document.getElementById(id)};
+  var canvas=document.createElement('canvas'), ctx=canvas.getContext('2d');
+  var drop=$('drop'), file=$('file');
+
+  function load(files){
+    var arr=Array.prototype.filter.call(files,function(f){return /^image\//.test(f.type)});
+    var left=arr.length; if(!left) return;
+    arr.forEach(function(f){
+      var url=URL.createObjectURL(f), im=new Image();
+      im.onload=function(){items.push({img:im,url:url,ar:im.naturalWidth/im.naturalHeight});if(--left===0)update()};
+      im.onerror=function(){if(--left===0)update()};
+      im.src=url;
+    });
+  }
+  drop.onclick=function(){file.click()};
+  drop.onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();file.click()}};
+  file.onchange=function(){load(file.files);file.value=''};
+  ['dragover','dragenter'].forEach(function(n){drop.addEventListener(n,function(e){e.preventDefault();drop.classList.add('over')})});
+  ['dragleave','drop'].forEach(function(n){drop.addEventListener(n,function(){drop.classList.remove('over')})});
+  drop.addEventListener('drop',function(e){e.preventDefault();load(e.dataTransfer.files)});
+
+  function thumbs(){
+    var box=$('thumbs'); box.innerHTML='';
+    items.forEach(function(it,i){
+      var d=document.createElement('div'); d.className='thumb';
+      var im=document.createElement('img'); im.src=it.url; im.alt='';
+      var b=document.createElement('button'); b.textContent='×'; b.setAttribute('aria-label','移除这张图片');
+      b.onclick=function(){items.splice(i,1);update()};
+      d.appendChild(im); d.appendChild(b); box.appendChild(d);
+    });
+  }
+
+  function layout(W,p){
+    var pad=p.gap, inner=W-2*pad, rects=[], y=pad, i;
+    if(p.mode==='rows'){
+      var row=[],sum=0;
+      var flush=function(last){
+        var n=row.length, avail=inner-p.gap*(n-1), h=avail/sum;
+        if(last&&h>p.size) h=p.size;
+        var x=pad;
+        row.forEach(function(it){var w=it.ar*h;rects.push({it:it,x:x,y:y,w:w,h:h});x+=w+p.gap});
+        y+=h+p.gap; row=[]; sum=0;
+      };
+      items.forEach(function(it){
+        row.push(it); sum+=it.ar;
+        if(sum*p.size+p.gap*(row.length-1)>=inner) flush(false);
+      });
+      if(row.length) flush(true);
+      return {rects:rects,H:y-p.gap+pad};
+    }
+    var cols=Math.max(1,Math.round(inner/(p.size+p.gap)));
+    var cw=(inner-p.gap*(cols-1))/cols;
+    if(p.mode==='grid'){
+      items.forEach(function(it,k){
+        var c=k%cols, r=Math.floor(k/cols);
+        rects.push({it:it,x:pad+c*(cw+p.gap),y:pad+r*(cw+p.gap),w:cw,h:cw,cover:true});
+      });
+      var rows=Math.ceil(items.length/cols);
+      return {rects:rects,H:pad*2+rows*cw+(rows-1)*p.gap};
+    }
+    var hs=[]; for(i=0;i<cols;i++)hs.push(pad);
+    items.forEach(function(it){
+      var c=hs.indexOf(Math.min.apply(null,hs)), h=cw/it.ar;
+      rects.push({it:it,x:pad+c*(cw+p.gap),y:hs[c],w:cw,h:h});
+      hs[c]+=h+p.gap;
+    });
+    return {rects:rects,H:Math.max.apply(null,hs)-p.gap+pad};
+  }
+
+  var MAXSIDE=8000;
+  function clampPx(v){v=Math.round(+v)||0;return Math.max(100,Math.min(MAXSIDE,v))}
+  function params(){
+    var auto=$('preset').value==='auto';
+    return {mode:$('mode').value,size:+$('size').value,gap:+$('gap').value,radius:+$('radius').value,
+      W:clampPx($('wIn').value),H:auto?0:clampPx($('hIn').value),bg:$('bg').value};
+  }
+
+  // 计算最终排版：固定高度时自动找最合适的行高/列宽，放不下再整体缩小
+  function solve(p){
+    if(!p.H){var L=layout(p.W,p);return {L:L,W:p.W,H:Math.max(1,Math.round(L.H)),off:0,k:1,size:p.size}}
+    var lo=30,hi=p.W,best=null,q,L,i;
+    for(i=0;i<14;i++){
+      var mid=Math.round((lo+hi)/2); q=Object.assign({},p,{size:mid}); L=layout(p.W,q);
+      if(L.H<=p.H){best={L:L,size:mid};lo=mid+1}else hi=mid-1;
+    }
+    if(!best){q=Object.assign({},p,{size:30});L=layout(p.W,q);
+      var k=Math.min(1,p.H/L.H);return {L:L,W:p.W,H:p.H,off:0,k:k,size:30,shrink:true}}
+    return {L:best.L,W:p.W,H:p.H,off:(p.H-best.L.H)/2,k:1,size:best.size};
+  }
+
+  function paint(cv,S,p){
+    var c=cv.getContext('2d');
+    cv.width=S.W; cv.height=S.H;
+    c.fillStyle=p.bg; c.fillRect(0,0,S.W,S.H);
+    var ox=S.k<1?(S.W-S.W*S.k)/2:0;
+    S.L.rects.forEach(function(r){
+      var im=r.it.img, sx=0,sy=0,sw=im.naturalWidth,sh=im.naturalHeight;
+      if(r.cover){var tr=r.w/r.h; if(r.it.ar>tr){sw=sh*tr;sx=(im.naturalWidth-sw)/2}else{sh=sw/tr;sy=(im.naturalHeight-sh)/2}}
+      var x=ox+r.x*S.k, y=S.off+r.y*S.k, w=r.w*S.k, h=r.h*S.k;
+      c.save();
+      if(p.radius>0&&c.roundRect){c.beginPath();c.roundRect(x,y,w,h,Math.min(p.radius*S.k,w/2,h/2));c.clip()}
+      c.drawImage(im,sx,sy,sw,sh,x,y,w,h);
+      c.restore();
+    });
+  }
+
+  function syncPreset(){
+    var v=$('preset').value, auto=v==='auto', custom=v==='custom';
+    if(!auto&&!custom){var t=v.split('x');$('wIn').value=t[0];$('hIn').value=t[1]}
+    $('hIn').disabled=auto; $('wIn').disabled=!(auto||custom);
+  }
+
+  function update(){
+    thumbs();
+    var st=$('stage');
+    if(!items.length){st.innerHTML='<div class="empty">先添加几张图片，排版会显示在这里</div>';$('dimInfo').textContent='';return}
+    var p=params(), fixed=!!p.H;
+    $('sizeLabel').textContent=fixed?'行高 / 列宽（固定尺寸时自动适配）':(p.mode==='rows'?'目标行高':'列宽（决定列数）');
+    $('size').disabled=fixed;
+    $('sizeOut').textContent=fixed?'自动':p.size; $('gapOut').textContent=p.gap; $('radiusOut').textContent=p.radius;
+    var S=solve(p); paint(canvas,S,p);
+    if(canvas.parentNode!==st){st.innerHTML='';st.appendChild(canvas)}
+    $('dimInfo').textContent='输出尺寸 '+S.W+' × '+S.H+' px'+(S.shrink?'（图片较多，已整体缩小以放进画布）':'')+'，共 '+items.length+' 张图片';
+    if(!fixed) $('hIn').value=S.H;
+  }
+
+  ['mode','size','gap','radius','wIn','hIn','bg'].forEach(function(id){
+    $(id).addEventListener('input',update); $(id).addEventListener('change',update);
+  });
+  $('preset').addEventListener('change',function(){syncPreset();update()});
+  $('shuffle').onclick=function(){
+    for(var i=items.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=items[i];items[i]=items[j];items[j]=t}
+    update();
+  };
+
+  // ---- 预览与保存
+  var cur=null, curUrl=null;
+  function showModal(on){$('modal').classList.toggle('on',on); if(!on&&curUrl){URL.revokeObjectURL(curUrl);curUrl=null;cur=null}}
+  function makeBlob(){
+    var p=params(), S=solve(p), out=document.createElement('canvas');
+    var jpg=$('fmt').value==='jpg';
+    paint(out,S,p);
+    if(jpg){var c=out.getContext('2d');c.globalCompositeOperation='destination-over';c.fillStyle='#fff';c.fillRect(0,0,out.width,out.height)}
+    return new Promise(function(res){
+      out.toBlob(function(b){res({blob:b,w:S.W,h:S.H,ext:jpg?'jpg':'png'})},jpg?'image/jpeg':'image/png',0.92);
+    });
+  }
+  function refreshPreview(){
+    $('msg').textContent='';
+    makeBlob().then(function(r){
+      if(!r.blob){$('pvInfo').textContent='图片太大，生成失败。请调小输出尺寸。';return}
+      if(curUrl)URL.revokeObjectURL(curUrl);
+      cur=r; curUrl=URL.createObjectURL(r.blob);
+      $('pvImg').src=curUrl;
+      $('pvInfo').textContent=r.w+' × '+r.h+' px · '+r.ext.toUpperCase()+' · '+(r.blob.size/1048576).toFixed(2)+' MB';
+    });
+  }
+  $('make').onclick=function(){if(!items.length)return;showModal(true);refreshPreview()};
+  $('back').onclick=function(){showModal(false)};
+  $('fmt').onchange=refreshPreview;
+  $('modal').addEventListener('click',function(e){if(e.target===$('modal'))showModal(false)});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')showModal(false)});
+  $('save').onclick=async function(){
+    if(!cur)return;
+    var d=null;
+    try{d=window.claude&&await window.claude.use('downloads')}catch(e){}
+    if(!d){
+      try{var a=document.createElement('a');a.href=curUrl;a.download='collage-'+cur.w+'x'+cur.h+'.'+cur.ext;document.body.appendChild(a);a.click();a.remove();
+        $('msg').textContent='如果没有开始下载，请长按（手机/iPad）或右键（电脑）上方图片，选择保存。'}
+      catch(e){$('msg').textContent='请长按（手机/iPad）或右键（电脑）上方图片，选择保存。'}
+      return}
+    try{
+      await d.save({filename:'collage-'+cur.w+'x'+cur.h+'.'+cur.ext,data:cur.blob});
+      $('msg').textContent='已保存。';
+    }catch(e){
+      $('msg').textContent=(e&&e.code==='declined')?'已取消保存。':'保存没有成功，可以长按或右键上方图片保存。';
+    }
+  };
+
+  syncPreset();
+  $('sizeOut').textContent=$('size').value; $('gapOut').textContent=$('gap').value; $('radiusOut').textContent=$('radius').value;
+})();
+</script>
+</body>
+</html>
